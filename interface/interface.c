@@ -192,10 +192,10 @@ CK_RV init_pin(CK_SLOT_ID slotID){
 		return rv;
 }
 
-CK_RV open_session(CK_SLOT_ID slotID, CK_SESSION_HANDLE hSession){
+CK_RV open_session(CK_SLOT_ID slotID){
 
 	CK_BYTE application;
-	//CK_SESSION_HANDLE hSession;
+	CK_SESSION_HANDLE hSession;
 	CK_RV rv = CKR_OK;
 
 	application = 1;
@@ -215,10 +215,10 @@ CK_RV open_session(CK_SLOT_ID slotID, CK_SESSION_HANDLE hSession){
 		return rv;
 }
 
-CK_RV close_session(CK_SLOT_ID slotID, CK_SESSION_HANDLE hSession){
+CK_RV close_session(CK_SLOT_ID slotID){
 
 	CK_BYTE application;
-	//CK_SESSION_HANDLE hSession;
+	CK_SESSION_HANDLE hSession;
 	CK_RV rv = CKR_OK;
 
 
@@ -241,7 +241,6 @@ CK_RV close_session(CK_SLOT_ID slotID, CK_SESSION_HANDLE hSession){
 }
 
 CK_RV generate_key_pair_rsa(){
-	CK_SESSION_HANDLE hSession;
 	CK_OBJECT_HANDLE hPublicKey, hPrivateKey;
 	CK_BBOOL true = CK_TRUE;
 	
@@ -267,7 +266,7 @@ CK_RV generate_key_pair_rsa(){
 
 	CK_RV rv = CKR_OK;
 
-	open_session(0, hSession);
+	open_session(0);
 	
 	rv = p11_functions-> C_GenerateKeyPair(hSession,&mechanism,publicKeyTemplate,5,privateKeyTemplate,8,hPublicKey,hPrivateKey);
 	
@@ -276,7 +275,7 @@ CK_RV generate_key_pair_rsa(){
 		goto exit;
 	}
 	printf("KeyPair created");
-	close_session(0, hSession);
+	close_session(0);
 	exit:
 		return rv;
 }
