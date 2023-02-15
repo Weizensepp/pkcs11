@@ -136,11 +136,11 @@ CK_RV get_slot_num(){
 CK_RV initilaize_token(CK_SLOT_ID slotID){
 	
 	CK_RV rv = CKR_OK;
-	CK_UTF8CHAR_PTR pin = "1234";
+	CK_UTF8CHAR_PTR pin = "123456";
 	CK_UTF8CHAR label[32];
 
-	//memset(&label, " ", sizeof(label));
-	memcpy(&label, "My first token", strlen("My first token"));
+	memset(&label, " ", sizeof(label));
+	memcpy(&label, "Token1", strlen("Token1"));
 
 	rv = p11_functions->C_InitToken(slotID,pin,strlen(pin),label);
 	if(rv != CKR_OK){
@@ -158,7 +158,7 @@ CK_RV init_pin(CK_SLOT_ID slotID){
 
 	CK_BYTE application;
 	CK_SESSION_HANDLE hSession;
-	CK_UTF8CHAR newPin[]= {"12345"};
+	CK_UTF8CHAR newPin[]= {"123456"};
 	CK_RV rv = CKR_OK;
 
 	application = 1;
@@ -168,7 +168,7 @@ CK_RV init_pin(CK_SLOT_ID slotID){
 		logger(rv,"C_OpenSession() failed",__LINE__,__FILE__,__FUNCTION__);
 		goto exit;
 	}
-	rv = p11_functions->C_Login(hSession,CKU_SO,"1234",strlen("1234"));
+	rv = p11_functions->C_Login(hSession,CKU_SO,"123456",strlen("123456"));
 	if(rv != CKR_OK){
 		logger(rv,"C_Login() failed",__LINE__,__FILE__,__FUNCTION__);
 		goto exit;
@@ -192,57 +192,58 @@ CK_RV init_pin(CK_SLOT_ID slotID){
 		return rv;
 }
 
-CK_RV open_session(CK_SLOT_ID slotID){
+// CK_RV open_session(CK_SLOT_ID slotID){
 
-	CK_BYTE application;
-	CK_SESSION_HANDLE hSession;
-	CK_RV rv = CKR_OK;
+// 	CK_BYTE application;
+// 	CK_SESSION_HANDLE hSession;
+// 	CK_RV rv = CKR_OK;
 
-	application = 1;
+// 	application = 1;
 
-	rv = p11_functions->C_OpenSession(slotID, CKF_SERIAL_SESSION | CKF_RW_SESSION, (void*)application, FALSE, &hSession);
-	if(rv != CKR_OK){
-		logger(rv,"C_OpenSession() failed",__LINE__,__FILE__,__FUNCTION__);
-		goto exit;
-	}
-	rv = p11_functions->C_Login(hSession,CKU_USER,"12345",strlen("12345"));
-	if(rv != CKR_OK){
-		logger(rv,"C_Login() failed",__LINE__,__FILE__,__FUNCTION__);
-		goto exit;
-	}
+// 	rv = p11_functions->C_OpenSession(slotID, CKF_SERIAL_SESSION | CKF_RW_SESSION, (void*)application, FALSE, &hSession);
+// 	if(rv != CKR_OK){
+// 		logger(rv,"C_OpenSession() failed",__LINE__,__FILE__,__FUNCTION__);
+// 		goto exit;
+// 	}
+// 	rv = p11_functions->C_Login(hSession,CKU_USER,"123456",strlen("123456"));
+// 	if(rv != CKR_OK){
+// 		logger(rv,"C_Login() failed",__LINE__,__FILE__,__FUNCTION__);
+// 		goto exit;
+// 	}
 
-	exit:
-		return rv;
-}
+// 	exit:
+// 		return rv;
+// }
 
-CK_RV close_session(CK_SLOT_ID slotID){
+// CK_RV close_session(CK_SLOT_ID slotID){
 
-	CK_BYTE application;
-	CK_SESSION_HANDLE hSession;
-	CK_RV rv = CKR_OK;
+// 	CK_BYTE application;
+// 	CK_SESSION_HANDLE hSession;
+// 	CK_RV rv = CKR_OK;
 
 
-	application = 1;
+// 	application = 1;
 
-	rv = p11_functions->C_Logout(hSession);
-	if(rv != CKR_OK){
-		logger(rv,"C_Logout() failed",__LINE__,__FILE__,__FUNCTION__);
-		goto exit;
-	}
+// 	rv = p11_functions->C_Logout(hSession);
+// 	if(rv != CKR_OK){
+// 		logger(rv,"C_Logout() failed",__LINE__,__FILE__,__FUNCTION__);
+// 		goto exit;
+// 	}
 
-	rv = p11_functions->C_CloseSession(hSession);
-	if(rv != CKR_OK){
-		logger(rv,"C_CloseSession() failed",__LINE__,__FILE__,__FUNCTION__);
-		goto exit;
-	}
+// 	rv = p11_functions->C_CloseSession(hSession);
+// 	if(rv != CKR_OK){
+// 		logger(rv,"C_CloseSession() failed",__LINE__,__FILE__,__FUNCTION__);
+// 		goto exit;
+// 	}
 
-	exit:
-		return rv;
-}
+// 	exit:
+// 		return rv;
+// }
 
-CK_RV generate_key_pair_rsa(){
+CK_RV generate_key_pair_rsa(CK_SLOT_ID slotID){
 	CK_OBJECT_HANDLE hPublicKey, hPrivateKey;
-	CK_BBOOL true = CK_TRUE;
+	CK_BBOOL istrue = CK_TRUE;
+	CK_CHAR aes_label = "AES_KEY";
 	
 	CK_MECHANISM mechanism = {
 		CKM_RSA_PKCS_KEY_PAIR_GEN, NULL_PTR, 0
@@ -251,31 +252,63 @@ CK_RV generate_key_pair_rsa(){
 	CK_ATTRIBUTE publicKeyTemplate[]={
 		
 		{CKA_CLASS, CKO_PUBLIC_KEY},
-		{CKA_TOKEN, &true, sizeof(true)},
+		{CKA_TOKEN, &istrue, sizeof(istrue)},
 		{CKA_LABEL, "rsa.pub"},
 		{CKA_MODULUS_BITS, 2048},
-		{CKA_VERIFY, &true, sizeof(true)}
+		{CKA_VERIFY, &istrue, sizeof(istrue)}
 	};
 
 	CK_ATTRIBUTE privateKeyTemplate[]={
 		{CKA_CLASS, CKO_PRIVATE_KEY},
-		{CKA_TOKEN, &true, sizeof(true)},
+		{CKA_TOKEN, &istrue, sizeof(istrue)},
 		{CKA_LABEL, "rsa"},
-		{CKA_SIGN, &true, sizeof(true)}
+		{CKA_SIGN, &istrue, sizeof(istrue)}
+	};
+
+	CK_ATTRIBUTE template_aes[] = {
+		{CKA_CLASS, CKO_PRIVATE_KEY},
+		{CKA_LABEL, aes_label},
+		{CKA_KEY_TYPE, CKK_AES},
+		{CKA_TOKEN, &istrue, sizeof(istrue)}
 	};
 
 	CK_RV rv = CKR_OK;
+	CK_BYTE application;
+	CK_SESSION_HANDLE hSession;
+	CK_OBJECT_HANDLE keyHandle;
+	application = 1;
 
-	open_session(0);
+	rv = p11_functions->C_OpenSession(slotID, CKF_SERIAL_SESSION | CKF_RW_SESSION, (void*)application, FALSE, &hSession);
+	if(rv != CKR_OK){
+		logger(rv,"C_OpenSession() failed",__LINE__,__FILE__,__FUNCTION__);
+		goto exit;
+	}
+	rv = p11_functions->C_Login(hSession,CKU_USER,"123456",strlen("123456"));
+	if(rv != CKR_OK){
+		logger(rv,"C_Login() failed",__LINE__,__FILE__,__FUNCTION__);
+		goto exit;
+	}
 	
 	rv = p11_functions-> C_GenerateKeyPair(hSession,&mechanism,publicKeyTemplate,5,privateKeyTemplate,8,hPublicKey,hPrivateKey);
-	
+	// rv = p11_functions -> C_GenerateKey(hSession,CKM_AES_KEY_GEN,template_aes,sizeof(template_aes)/sizeof(CK_ATTRIBUTE), &keyHandle);
 	if(rv != CKR_OK){
 		logger(rv,"C_GenerateKeyPair() failed",__LINE__,__FILE__,__FUNCTION__);
 		goto exit;
 	}
 	printf("KeyPair created");
-	close_session(0);
+
+	rv = p11_functions->C_Logout(hSession);
+	if(rv != CKR_OK){
+		logger(rv,"C_Logout() failed",__LINE__,__FILE__,__FUNCTION__);
+		goto exit;
+	}
+	rv = p11_functions->C_CloseSession(hSession);
+	if(rv != CKR_OK){
+		logger(rv,"C_CloseSession() failed",__LINE__,__FILE__,__FUNCTION__);
+		goto exit;
+	}
+
+
 	exit:
 		return rv;
 }
@@ -319,7 +352,7 @@ int main(){
 	init_pin(0);
 		break;
 	case 4:
-	generate_key_pair_rsa();
+	generate_key_pair_rsa(0);
 		break;
 	case 5:
 	finalize();
