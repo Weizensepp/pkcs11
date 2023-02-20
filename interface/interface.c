@@ -24,6 +24,7 @@
 char cryptoki_lib_dest[4096] = {0};
 CK_FUNCTION_LIST_PTR p11_functions = NULL_PTR;
 CK_VOID_PTR lib_handle = NULL_PTR;
+CK_BBOOL istrue = CK_TRUE;
 
 
 void logger(int rv, char *msg, int line, const char* file, const char *func)
@@ -131,6 +132,19 @@ CK_RV get_slot_num(){
 
 }
 
+CK_RV open_session(CK_SLOT_ID slotID, CK_SESSION_HANDLE hSession){
+
+	CK_RV rv = CKR_OK;
+	CK_BYTE application = 1;
+
+	rv = p11_functions -> C_OpenSession(slotID, CKF_SERIAL_SESSION | CKF_RW_SESSION,&application, CK_FALSE, &hSession);
+	if(rv != CKR_OK){
+		logger(rv, "C_OpenSession() failed", __LINE__,__FILE__,__FUNCTION__);
+		goto exit;
+	}
+	exit:
+		return rv;
+}
 
 
 CK_RV initilaize_token(CK_SLOT_ID slotID){
@@ -196,7 +210,7 @@ CK_RV init_pin(CK_SLOT_ID slotID){
 
 CK_RV generate_key_pair_rsa(CK_SLOT_ID slotID){
 	CK_OBJECT_HANDLE hPublicKey, hPrivateKey;
-	CK_BBOOL istrue = CK_TRUE;
+
 
 	
 	CK_MECHANISM mechanism = {
@@ -225,7 +239,7 @@ CK_RV generate_key_pair_rsa(CK_SLOT_ID slotID){
 	CK_SESSION_HANDLE hSession;
 	application = 1;
 
-	rv = p11_functions->C_OpenSession(slotID, CKF_SERIAL_SESSION | CKF_RW_SESSION, (void*)application, FALSE, &hSession);
+	rv = p11_functions->C_OpenSession(slotID, CKF_SERIAL_SESSION | CKF_RW_SESSION, &application, FALSE, &hSession);
 	if(rv != CKR_OK){
 		logger(rv,"C_OpenSession() failed",__LINE__,__FILE__,__FUNCTION__);
 		goto exit;
@@ -235,8 +249,7 @@ CK_RV generate_key_pair_rsa(CK_SLOT_ID slotID){
 		logger(rv,"C_Login() failed",__LINE__,__FILE__,__FUNCTION__);
 		goto exit;
 	}
-	
-	rv = p11_functions-> C_GenerateKeyPair(hSession,&mechanism,publicKeyTemplate,5,privateKeyTemplate,8,hPublicKey,hPrivateKey);
+	rv = p11_functions-> C_GenerateKeyPair(hSession,&mechanism,publicKeyTemplate,5,privateKeyTemplate,4,&hPublicKey,&hPrivateKey);
 	if(rv != CKR_OK){
 		logger(rv,"C_GenerateKeyPair() failed",__LINE__,__FILE__,__FUNCTION__);
 		goto exit;
@@ -256,6 +269,60 @@ CK_RV generate_key_pair_rsa(CK_SLOT_ID slotID){
 
 	exit:
 		return rv;
+}
+
+CK_RV generate_key_aes(CK_SLOT_ID slotID){
+	CK_SESSION_HANDLE hSession;
+	CK_OBJECT_HANDLE hKey;
+	CK_ULONG key_length = 32;
+	CK_CHAR label = "AES_Key";
+	CK_OBJECT_CLASS class = CKO_SECRET_KEY;
+	CK_MECHANISM mechanism = {
+		CKM_AES_KEY_GEN, NULL_PTR, 0
+	};
+
+	CK_RV rv = CKR_OK;
+	CK_BYTE application;
+	application = 1;
+
+	CK_ATTRIBUTE AES_Template[]={
+		{CKA_CLASS, &class, sizeof(class)},
+		{CKA_TOKEN, &istrue, sizeof(istrue)},
+		{CKA_LABEL, label, sizeof(label) -1},
+		{CKA_ENCRYPT, &istrue, sizeof(istrue)},
+		{CKA_DECRYPT, &istrue, sizeof(istrue)},
+		{CKA_VALUE_LEN, &key_length, sizeof(key_length)}
+	};
+
+	rv = p11_functions->C_OpenSession(slotID, CKF_SERIAL_SESSION | CKF_RW_SESSION, &application, FALSE, &hSession);
+	if(rv != CKR_OK){
+		logger(rv,"C_OpenSession() failed",__LINE__,__FILE__,__FUNCTION__);
+		goto exit;
+	}
+	rv = p11_functions->C_Login(hSession,CKU_USER,"123456",strlen("123456"));
+	if(rv != CKR_OK){
+		logger(rv,"C_Login() failed",__LINE__,__FILE__,__FUNCTION__);
+		goto exit;
+	}
+	rv = p11_functions->C_GenerateKey(hSession,&mechanism,AES_Template,sizeof(AES_Template)/sizeof(CK_ATTRIBUTE),&hKey);
+	if(rv != CKR_OK){
+		logger(rv,"C_GenerateKey() failed",__LINE__,__FILE__,__FUNCTION__);
+		goto exit;
+	}
+	rv = p11_functions->C_Logout(hSession);
+	if(rv != CKR_OK){
+		logger(rv,"C_Logout() failed",__LINE__,__FILE__,__FUNCTION__);
+		goto exit;
+	}
+	rv = p11_functions->C_CloseSession(hSession);
+	if(rv != CKR_OK){
+		logger(rv,"C_CloseSession() failed",__LINE__,__FILE__,__FUNCTION__);
+		goto exit;
+	}
+	printf("\nAES Key created succefsully\n");
+	exit:
+		return rv;
+
 }
 
 
@@ -281,8 +348,9 @@ int main(){
 	printf("1: get Number of avaible Slots\n");
 	printf("2: init token\n");
 	printf("3: Init User Pin\n");
-	printf("4: Generate Key Pair\n");
-	printf("5: finalize\n");
+	printf("4: Generate RSA Key Pair\n");
+	printf("5: Generate AES Key\n");	
+	printf("6: finalize\n");
 	
 	scanf("%d",&option);
 	 switch (option)
@@ -297,9 +365,12 @@ int main(){
 	init_pin(0);
 		break;
 	case 4:
-	generate_key_pair_rsa(0);
+	generate_key_pair_rsa(170267550);
 		break;
 	case 5:
+	generate_key_aes(170267550);
+		break;
+	case 6:
 	finalize();
 	return FALSE;
 		break;
