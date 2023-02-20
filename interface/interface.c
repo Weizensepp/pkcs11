@@ -210,6 +210,10 @@ CK_RV init_pin(CK_SLOT_ID slotID){
 
 CK_RV generate_key_pair_rsa(CK_SLOT_ID slotID){
 	CK_OBJECT_HANDLE hPublicKey, hPrivateKey;
+	CK_CHAR label = "rsa";
+	CK_ULONG key_length = 2048;
+	CK_OBJECT_CLASS publicClass = CKO_PUBLIC_KEY, privateClass = CKO_PRIVATE_KEY;
+	 
 
 
 	
@@ -219,17 +223,17 @@ CK_RV generate_key_pair_rsa(CK_SLOT_ID slotID){
 
 	CK_ATTRIBUTE publicKeyTemplate[]={
 		
-		{CKA_CLASS, CKO_PUBLIC_KEY},
+		{CKA_CLASS, &publicClass, sizeof(publicClass)},
 		{CKA_TOKEN, &istrue, sizeof(istrue)},
-		{CKA_LABEL, "rsa.pub"},
-		{CKA_MODULUS_BITS, 2048},
+		{CKA_LABEL, "${label}.pub",sizeof(label)-1},
+		{CKA_MODULUS_BITS, &key_length, sizeof(key_length)},
 		{CKA_VERIFY, &istrue, sizeof(istrue)}
 	};
 
 	CK_ATTRIBUTE privateKeyTemplate[]={
-		{CKA_CLASS, CKO_PRIVATE_KEY},
+		{CKA_CLASS, &privateClass, sizeof(privateClass)},
 		{CKA_TOKEN, &istrue, sizeof(istrue)},
-		{CKA_LABEL, "rsa"},
+		{CKA_LABEL, label, sizeof(label)-1},
 		{CKA_SIGN, &istrue, sizeof(istrue)}
 	};
 
@@ -249,7 +253,7 @@ CK_RV generate_key_pair_rsa(CK_SLOT_ID slotID){
 		logger(rv,"C_Login() failed",__LINE__,__FILE__,__FUNCTION__);
 		goto exit;
 	}
-	rv = p11_functions-> C_GenerateKeyPair(hSession,&mechanism,publicKeyTemplate,5,privateKeyTemplate,4,&hPublicKey,&hPrivateKey);
+	rv = p11_functions-> C_GenerateKeyPair(hSession,&mechanism,publicKeyTemplate,sizeof(publicKeyTemplate)/sizeof(CK_ATTRIBUTE),privateKeyTemplate,sizeof(privateKeyTemplate)/sizeof(CK_ATTRIBUTE),&hPublicKey,&hPrivateKey);
 	if(rv != CKR_OK){
 		logger(rv,"C_GenerateKeyPair() failed",__LINE__,__FILE__,__FUNCTION__);
 		goto exit;
@@ -365,10 +369,10 @@ int main(){
 	init_pin(0);
 		break;
 	case 4:
-	generate_key_pair_rsa(170267550);
+	generate_key_pair_rsa(0);
 		break;
 	case 5:
-	generate_key_aes(170267550);
+	generate_key_aes(0);
 		break;
 	case 6:
 	finalize();
