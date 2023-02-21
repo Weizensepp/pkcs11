@@ -11,10 +11,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <dlfcn.h>
+#include <unistd.h>
+#include <termios.h>
 
 
 /*Makros*/
-#define MAX_PWD_LEN  200
+#define MAX_PWD_LEN  64
 #define MAX_LABEL_LEN  200
 #define MAX_SLOTS 20
 
@@ -25,6 +27,8 @@ char cryptoki_lib_dest[4096] = {0};
 CK_FUNCTION_LIST_PTR p11_functions = NULL_PTR;
 CK_VOID_PTR lib_handle = NULL_PTR;
 CK_BBOOL istrue = CK_TRUE;
+
+void getPin(unsigned char *pin);
 
 
 void logger(int rv, char *msg, int line, const char* file, const char *func)
@@ -129,32 +133,20 @@ CK_RV get_slot_num(){
 	
 	exit:
 		return rv;
-
 }
-
-CK_RV open_session(CK_SLOT_ID slotID, CK_SESSION_HANDLE hSession){
-
-	CK_RV rv = CKR_OK;
-	CK_BYTE application = 1;
-
-	rv = p11_functions -> C_OpenSession(slotID, CKF_SERIAL_SESSION | CKF_RW_SESSION,&application, CK_FALSE, &hSession);
-	if(rv != CKR_OK){
-		logger(rv, "C_OpenSession() failed", __LINE__,__FILE__,__FUNCTION__);
-		goto exit;
-	}
-	exit:
-		return rv;
-}
-
 
 CK_RV initilaize_token(CK_SLOT_ID slotID){
 	
 	CK_RV rv = CKR_OK;
-	CK_UTF8CHAR pin[] = {"123456"};
+	CK_UTF8CHAR pin[MAX_PWD_LEN];
 	CK_UTF8CHAR label[32];
 
 	//memset(&label, " ", sizeof(label));
 	memcpy(&label, "Token1", strlen("Token1"));
+
+	//memset(pin,0,sizeof(pin));
+
+	getPin(pin);
 
 	rv = p11_functions->C_InitToken(slotID,pin,sizeof(pin)-1,label);
 	if(rv != CKR_OK){
@@ -344,6 +336,31 @@ CK_RV finalize(){
 	exit:
 		return rv;
 }
+
+void getPin(unsigned char *pin){
+	static struct termios old_term, new_term;
+	int i = 0, c;
+	/*saving old settings of terminal*/
+	tcgetattr(STDIN_FILENO, &old_term);
+	new_term = old_term;
+
+	/*turns off Echo*/
+	new_term.c_lflag &= ~(ECHO);
+
+	/*setting new bits*/
+	tcsetattr(STDIN_FILENO, TCSANOW, &new_term);
+
+	/*reading pin from console*/
+	while((c = getchar())!= '\n' && c != EOF && i < MAX_PWD_LEN){
+		pin[i++] = c;
+	}
+	pin[i]= '\0';
+
+	/*resetting to old terminal settings*/
+	tcsetattr(STDIN_FILENO, TCSANOW, &old_term);
+
+}
+
 
 int main(){
 
