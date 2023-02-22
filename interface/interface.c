@@ -7,6 +7,7 @@
 /* Inlcudes */
 
 #include "pkcs11.h"
+#include "interface.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,7 +17,7 @@
 
 
 /*Makros*/
-#define MAX_PWD_LEN  64
+#define MAX_PWD_LEN  16
 #define MAX_LABEL_LEN  200
 #define MAX_SLOTS 20
 
@@ -27,8 +28,6 @@ char cryptoki_lib_dest[4096] = {0};
 CK_FUNCTION_LIST_PTR p11_functions = NULL_PTR;
 CK_VOID_PTR lib_handle = NULL_PTR;
 CK_BBOOL istrue = CK_TRUE;
-
-void getPin(unsigned char *pin);
 
 
 void logger(int rv, char *msg, int line, const char* file, const char *func)
@@ -108,29 +107,59 @@ CK_RV load_pkcs11_funtions(){
 		return rv;
 }
 
-
-CK_RV get_slot_num(){
+CK_RV get_slot_num(CK_ULONG *ulSlot_count){
 	
 	CK_RV rv = CKR_OK;
-	CK_ULONG ulSlot_count = 0;
 //	CK_BBOOL token_present = CK_TRUE;
-	CK_SLOT_ID_PTR pSlot_List;
+	// CK_SLOT_ID_PTR pSlot_List;
 	
-	rv = p11_functions -> C_GetSlotList(CK_FALSE,NULL_PTR,&ulSlot_count);
+	rv = p11_functions -> C_GetSlotList(CK_FALSE,NULL_PTR,ulSlot_count);
 	if( rv != CKR_OK )
 	{
 		logger(rv,"C_GetSlotList() failed",__LINE__,__FILE__,__FUNCTION__);
 		goto exit;
 	}
-	if(rv == CKR_OK){
-		pSlot_List = (CK_SLOT_ID_PTR) malloc(ulSlot_count*sizeof(CK_SLOT_ID));
-		rv = p11_functions->C_GetSlotList(CK_FALSE, pSlot_List, &ulSlot_count);
-		if(rv == CKR_OK){
-			printf("\nAvailable Slots: %ld \n",ulSlot_count);
-		}
-		free(pSlot_List);
-	}
+	// if(rv == CKR_OK){
+	// 	pSlot_List = (CK_SLOT_ID_PTR) malloc(ulSlot_count*sizeof(CK_SLOT_ID));
+	// 	rv = p11_functions->C_GetSlotList(CK_FALSE, pSlot_List, &ulSlot_count);
+	// 	if(rv == CKR_OK){
+	// 		printf("\nAvailable Slots: %ld \n",ulSlot_count);
+	// 	}
+	// 	free(pSlot_List);
+	// }
 	
+	exit:
+		return rv;
+}
+
+CK_RV get_slot_list(CK_ULONG *max_slot_count,CK_SLOT_ID **slot_list)
+{
+	CK_RV rv = CKR_OK;
+	CK_BBOOL token_present = TRUE;
+
+	/*  Allocate slot ids to slot_list buffer and max no of slots */
+	rv = p11_functions->C_GetSlotList(token_present,*slot_list,max_slot_count);
+	if( rv != CKR_OK )
+	{
+		logger(rv,"C_GetSlotList() failed",__LINE__,__FILE__,__FUNCTION__);
+		goto exit;
+	}
+	exit:
+		return rv;
+}
+
+CK_RV get_token_info(CK_SLOT_ID slot_id, CK_TOKEN_INFO *token_info)
+{
+	CK_RV rv = CKR_OK;
+
+	/* Get info of token available at slot_id */
+	rv = p11_functions->C_GetTokenInfo(slot_id,token_info);
+	if( rv != CKR_OK)
+	{
+		logger(rv,"C_GetTokenInfo() failed",__LINE__,__FILE__,__FUNCTION__);
+		goto exit;
+	}
+
 	exit:
 		return rv;
 }
@@ -138,17 +167,20 @@ CK_RV get_slot_num(){
 CK_RV initilaize_token(CK_SLOT_ID slotID){
 	
 	CK_RV rv = CKR_OK;
-	CK_UTF8CHAR pin[MAX_PWD_LEN];
+	CK_UTF8CHAR soPin[MAX_PWD_LEN]={0};
 	CK_UTF8CHAR label[32];
 
 	//memset(&label, " ", sizeof(label));
-	memcpy(&label, "Token1", strlen("Token1"));
+	memcpy(&label, "ClypeumToken", strlen("ClypeumToken"));
 
 	//memset(pin,0,sizeof(pin));
+	printf("\nPlease Enter new SO Pin: ");
 
-	getPin(pin);
+	getchar();
+	getPin(soPin);
+	printf("\n");
 
-	rv = p11_functions->C_InitToken(slotID,pin,sizeof(pin)-1,label);
+	rv = p11_functions->C_InitToken(slotID,soPin,sizeof(soPin)-1,label);
 	if(rv != CKR_OK){
 		logger(rv,"C_InitToken() failed",__LINE__,__FILE__,__FUNCTION__);
 		goto exit;
@@ -164,11 +196,17 @@ CK_RV init_pin(CK_SLOT_ID slotID){
 
 	CK_BYTE application;
 	CK_SESSION_HANDLE hSession;
-	CK_UTF8CHAR newPin[]= {"123456"};
-	CK_UTF8CHAR soPin[] = {"123456"};
+	CK_UTF8CHAR newPin[MAX_PWD_LEN]= {"0"};
+	CK_UTF8CHAR soPin[MAX_PWD_LEN] = {"0"};
 	CK_RV rv = CKR_OK;
 
 	application = 1;
+
+	printf("\nPlease Enter SO Pin: ");
+	
+	getchar();
+	getPin(soPin);
+	printf("\n");
 
 	rv = p11_functions->C_OpenSession(slotID, CKF_SERIAL_SESSION | CKF_RW_SESSION, &application, FALSE, &hSession);
 	if(rv != CKR_OK){
@@ -180,6 +218,12 @@ CK_RV init_pin(CK_SLOT_ID slotID){
 		logger(rv,"C_Login() failed",__LINE__,__FILE__,__FUNCTION__);
 		goto exit;
 	}
+
+	printf("\nPlease Enter new Pin: ");
+	//getchar();
+	getPin(newPin);
+	printf("\n");
+
 	rv = p11_functions-> C_InitPIN(hSession, newPin, sizeof(newPin)-1);
 	if(rv != CKR_OK){
 		logger(rv,"C_InitPIN() failed",__LINE__,__FILE__,__FUNCTION__);
@@ -200,15 +244,11 @@ CK_RV init_pin(CK_SLOT_ID slotID){
 		return rv;
 }
 
-
 CK_RV generate_key_pair_rsa(CK_SLOT_ID slotID){
 	CK_OBJECT_HANDLE hPublicKey, hPrivateKey;
 	CK_CHAR label[] = {"rsa"};
 	CK_ULONG key_length = 2048;
 	CK_OBJECT_CLASS publicClass = CKO_PUBLIC_KEY, privateClass = CKO_PRIVATE_KEY;
-	 
-
-
 	
 	CK_MECHANISM mechanism = {
 		CKM_RSA_PKCS_KEY_PAIR_GEN, NULL_PTR, 0
@@ -234,7 +274,7 @@ CK_RV generate_key_pair_rsa(CK_SLOT_ID slotID){
 	CK_RV rv = CKR_OK;
 	CK_BYTE application;
 	CK_SESSION_HANDLE hSession;
-	CK_UTF8CHAR Pin[] = {"123456"};
+	CK_UTF8CHAR Pin[MAX_PWD_LEN] = {"0"};
 	application = 1;
 
 	rv = p11_functions->C_OpenSession(slotID, CKF_SERIAL_SESSION | CKF_RW_SESSION, &application, FALSE, &hSession);
@@ -242,6 +282,12 @@ CK_RV generate_key_pair_rsa(CK_SLOT_ID slotID){
 		logger(rv,"C_OpenSession() failed",__LINE__,__FILE__,__FUNCTION__);
 		goto exit;
 	}
+	
+	printf("\nPlease Enter User Pin: ");
+	getchar();
+	getPin(Pin);
+	printf("\n");
+
 	rv = p11_functions->C_Login(hSession,CKU_USER,Pin,sizeof(Pin)-1);
 	if(rv != CKR_OK){
 		logger(rv,"C_Login() failed",__LINE__,__FILE__,__FUNCTION__);
@@ -263,7 +309,7 @@ CK_RV generate_key_pair_rsa(CK_SLOT_ID slotID){
 		logger(rv,"C_CloseSession() failed",__LINE__,__FILE__,__FUNCTION__);
 		goto exit;
 	}
-	printf("Keypair created succesfully!");
+	printf("\nKeypair created succesfully!");
 
 	exit:
 		return rv;
@@ -280,7 +326,7 @@ CK_RV generate_key_aes(CK_SLOT_ID slotID){
 	};
 
 	CK_RV rv = CKR_OK;
-	CK_UTF8CHAR Pin[] = {"123456"};
+	CK_UTF8CHAR Pin[MAX_PWD_LEN] = {"0"};
 	CK_BYTE application;
 	application = 1;
 
@@ -298,6 +344,12 @@ CK_RV generate_key_aes(CK_SLOT_ID slotID){
 		logger(rv,"C_OpenSession() failed",__LINE__,__FILE__,__FUNCTION__);
 		goto exit;
 	}
+
+	printf("\nPlease Enter User Pin: ");
+	getchar();
+	getPin(Pin);
+	printf("\n");
+
 	rv = p11_functions->C_Login(hSession,CKU_USER,Pin,sizeof(Pin)-1);
 	if(rv != CKR_OK){
 		logger(rv,"C_Login() failed",__LINE__,__FILE__,__FUNCTION__);
@@ -324,7 +376,6 @@ CK_RV generate_key_aes(CK_SLOT_ID slotID){
 
 }
 
-
 CK_RV finalize(){
 	CK_RV rv = CKR_OK;
 	rv = p11_functions-> C_Finalize(NULL_PTR);
@@ -338,63 +389,199 @@ CK_RV finalize(){
 }
 
 void getPin(unsigned char *pin){
-	static struct termios old_term, new_term;
-	int i = 0, c;
+	
+	static struct termios standard_term, actual_term;
+	int i = 0;
+	int c;
 	/*saving old settings of terminal*/
-	tcgetattr(STDIN_FILENO, &old_term);
-	new_term = old_term;
+	tcgetattr(STDIN_FILENO, &standard_term);
+	actual_term = standard_term;
 
 	/*turns off Echo*/
-	new_term.c_lflag &= ~(ECHO);
+	actual_term.c_lflag &= ~(ECHO);
 
 	/*setting new bits*/
-	tcsetattr(STDIN_FILENO, TCSANOW, &new_term);
+	tcsetattr(STDIN_FILENO, TCSANOW, &actual_term);
 
 	/*reading pin from console*/
-	while((c = getchar())!= '\n' && c != EOF && i < MAX_PWD_LEN){
+
+	while((c = getchar()) != '\n' && i < MAX_PWD_LEN){
 		pin[i++] = c;
 	}
 	pin[i]= '\0';
 
 	/*resetting to old terminal settings*/
-	tcsetattr(STDIN_FILENO, TCSANOW, &old_term);
-
+	tcsetattr(STDIN_FILENO, TCSANOW, &standard_term);
 }
-
 
 int main(){
 
 	int option = 0; 
 	load_pkcs11_funtions();
+	CK_RV rv = CKR_OK;
+
 	
 	while(TRUE){
 	printf("\nType number for function:\n");
-	printf("1: get Number of avaible Slots\n");
-	printf("2: init token\n");
-	printf("3: Init User Pin\n");
-	printf("4: Generate RSA Key Pair\n");
-	printf("5: Generate AES Key\n");	
-	printf("6: finalize\n");
+	printf("1: Get slot list\n");
+	printf("2: Token info\n");
+	printf("3: Init token\n");
+	printf("4: Init User Pin\n");
+	printf("5: Generate RSA Key Pair\n");
+	printf("6: Generate AES Key\n");	
+	printf("7: Finalize\n");
 	
 	scanf("%d",&option);
-	 switch (option)
-	 {
-	 case 1:
-	 get_slot_num();
-		break;
+	switch (option)
+	{
+	case 1:
+	{
+	CK_ULONG slot_count = 0;
+	CK_ULONG max_slot_count = 0;
+	CK_SLOT_ID *slot_list = NULL;
+	CK_ULONG slot_iterator = 0;
+
+	/* List number of available slots id with tokens*/
+	rv = get_slot_num(&slot_count);
+	if (rv != CKR_OK) {
+		logger(rv, "get_count_available_slots() failed", __LINE__,__FILE__, __FUNCTION__);
+		goto exit;
+	}
+	/* Assign memory to slot_id buffer to store list of slot list of slot ids */
+	slot_list = (CK_SLOT_ID_PTR) malloc(sizeof(CK_SLOT_ID) * slot_count);
+	max_slot_count = slot_count;
+
+	/* Get slot list */
+	rv = get_slot_list(&max_slot_count, &slot_list);
+	if (rv != CKR_OK)
+	{
+		logger(rv, "get_slot_list() failed", __LINE__, __FILE__,__FUNCTION__);
+		goto exit;
+	}
+
+	/* Verify new count to slot does not exceed slots previously detected */
+	if (slot_count > max_slot_count)
+	{
+		printf("Second call to C_GetSlotList returned number of present slots(%ld) larger than previously detected(%ld)",max_slot_count, slot_count);
+	}
+
+	printf("\nList of available slot ids with tokens: \n");
+
+	/* Get info of each slot */
+	for (slot_iterator = 0; slot_iterator < max_slot_count; slot_iterator++)
+	{
+		printf("\nSlot #%ld\n", slot_list[slot_iterator]);
+	}
+
+	break;
+	}
 	case 2:
-	initilaize_token(0);
-		break;
+	{
+	CK_TOKEN_INFO token_info ;
+	CK_SLOT_ID slot_id = 0 ;
+	char buffer[100] ={0};
+
+	printf("\nEnter slot id: ");
+	scanf("%ld",&slot_id);
+
+	get_token_info(slot_id,&token_info);
+
+	printf("Token information: \n");
+	snprintf(buffer,sizeof(token_info.label),"%s",token_info.label);
+	printf("->label: %s\n",buffer);
+
+	memset(buffer,0,sizeof(buffer));
+	snprintf(buffer,sizeof(token_info.manufacturerID),"%s",token_info.manufacturerID);
+	printf("->Manufacturer: %s\n",buffer);
+
+
+	memset(buffer,0,sizeof(buffer));
+	snprintf(buffer,sizeof(token_info.model),"%s",token_info.model);
+	printf("->Model: %s\n",buffer);
+
+	memset(buffer,0,sizeof(buffer));
+	snprintf(buffer,sizeof(token_info.serialNumber),"%s",token_info.serialNumber);
+	printf("->Serial number: %s\n",buffer);
+
+	memset(buffer,0,sizeof(buffer));
+	snprintf(buffer,sizeof(token_info.ulTotalPublicMemory),"%ld",token_info.ulTotalPublicMemory);
+	printf("->Total public memory: %s\n",buffer);
+
+	memset(buffer,0,sizeof(buffer));
+	snprintf(buffer,sizeof(token_info.ulFreePublicMemory),"%ld",token_info.ulFreePublicMemory);
+	printf("->Total free public memory: %s\n",buffer);
+
+	memset(buffer,0,sizeof(buffer));
+	snprintf(buffer,sizeof(token_info.ulSessionCount),"%ld",token_info.ulSessionCount);
+	printf("->Session count: %s\n",buffer);
+
+	memset(buffer,0,sizeof(buffer));
+	snprintf(buffer,sizeof(token_info.ulMaxSessionCount),"%ld",token_info.ulMaxSessionCount);
+	printf("->Max Session count: %s\n",buffer);
+
+	/* Check flags */
+	if( token_info.flags & CKF_RNG)
+	{
+		printf("->Token has its own random number generator \n");
+	}
+	else
+	{
+		printf("->Token does not have its own random number generator \n");
+	}
+
+	if( token_info.flags & CKF_WRITE_PROTECTED)
+	{
+		printf("->Token is write protected\n");
+	}
+	else
+	{
+		printf("->Token is not write protected \n");
+	}
+
+	if( token_info.flags & CKF_TOKEN_INITIALIZED)
+	{
+		printf("->Token is initialized\n");
+	}
+	else
+	{
+		printf("->Token is not initialized \n");
+	}
+
+	break;
+}
 	case 3:
-	init_pin(0);
+	{
+	CK_SLOT_ID slotID = 0;
+	printf("Select a Slot: ");
+	scanf("%ld", &slotID);
+	initilaize_token(slotID);
 		break;
+	}
 	case 4:
-	generate_key_pair_rsa(0);
+	{
+	CK_SLOT_ID slotID = 0;
+	printf("Select a Slot: ");
+	scanf("%ld", &slotID);
+	init_pin(slotID);
 		break;
+	}
 	case 5:
-	generate_key_aes(0);
+	{
+	CK_SLOT_ID slotID = 0;
+	printf("Select a Slot: ");
+	scanf("%ld", &slotID);
+	generate_key_pair_rsa(slotID);
 		break;
+	}
 	case 6:
+	{
+	CK_SLOT_ID slotID = 0;
+	printf("Select a Slot: ");
+	scanf("%ld", &slotID);
+	generate_key_aes(slotID);
+		break;
+	}
+	case 7:
 	finalize();
 	return FALSE;
 		break;
@@ -404,5 +591,6 @@ int main(){
 	 }
 	
 	}
-
+	exit:
+		return rv;
 }
