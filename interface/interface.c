@@ -164,7 +164,7 @@ CK_RV get_token_info(CK_SLOT_ID slot_id, CK_TOKEN_INFO *token_info)
 		return rv;
 }
 
-CK_RV initilaize_token(CK_SLOT_ID slotID){
+CK_RV initialize_token(CK_SLOT_ID slotID){
 	
 	CK_RV rv = CKR_OK;
 	CK_UTF8CHAR soPin[MAX_PWD_LEN]={0};
