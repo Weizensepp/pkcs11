@@ -17,7 +17,7 @@
 
 
 /*Makros*/
-#define MAX_PWD_LEN  16
+#define MAX_PWD_LEN  15
 #define MAX_LABEL_LEN  200
 #define MAX_SLOTS 20
 
@@ -247,7 +247,7 @@ CK_RV init_pin(CK_SLOT_ID slotID){
 CK_RV generate_key_pair_rsa(CK_SLOT_ID slotID){
 	CK_OBJECT_HANDLE hPublicKey, hPrivateKey;
 	CK_CHAR label[] = {"rsa"};
-	CK_ULONG key_length = 2048;
+	CK_ULONG key_length = 1024;
 	CK_OBJECT_CLASS publicClass = CKO_PUBLIC_KEY, privateClass = CKO_PRIVATE_KEY;
 	
 	CK_MECHANISM mechanism = {
@@ -274,7 +274,7 @@ CK_RV generate_key_pair_rsa(CK_SLOT_ID slotID){
 	CK_RV rv = CKR_OK;
 	CK_BYTE application;
 	CK_SESSION_HANDLE hSession;
-	CK_UTF8CHAR Pin[MAX_PWD_LEN] = {"0"};
+	CK_UTF8CHAR pin[MAX_PWD_LEN] = {"0"};
 	application = 1;
 
 	rv = p11_functions->C_OpenSession(slotID, CKF_SERIAL_SESSION | CKF_RW_SESSION, &application, FALSE, &hSession);
@@ -285,10 +285,10 @@ CK_RV generate_key_pair_rsa(CK_SLOT_ID slotID){
 	
 	printf("\nPlease Enter User Pin: ");
 	getchar();
-	getPin(Pin);
+	getPin(pin);
 	printf("\n");
 
-	rv = p11_functions->C_Login(hSession,CKU_USER,Pin,sizeof(Pin)-1);
+	rv = p11_functions->C_Login(hSession,CKU_USER,pin,sizeof(pin)-1);
 	if(rv != CKR_OK){
 		logger(rv,"C_Login() failed",__LINE__,__FILE__,__FUNCTION__);
 		goto exit;
