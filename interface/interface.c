@@ -44,8 +44,8 @@ CK_RV get_library()
 	lib_path = getenv("CRYPTOKI_LIB_PATH");
 	if( lib_path == NULL )
 	{
-		printf("Failed to get CRYPTOKI_LIB_PATH");
 		rv = CKR_GENERAL_ERROR;
+		logger(rv,"Failed to get CRYPTOKI_LIB_PATH",__LINE__,__FILE__,__FUNCTION__);
 		goto exit;
 	}
 
