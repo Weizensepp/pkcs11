@@ -554,7 +554,7 @@ int main(){
 	CK_SLOT_ID slotID = 0;
 	printf("Select a Slot: ");
 	scanf("%ld", &slotID);
-	initilaize_token(slotID);
+	initialize_token(slotID);
 		break;
 	}
 	case 4:
